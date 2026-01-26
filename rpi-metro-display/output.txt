@@ -1,0 +1,20 @@
+ * Serving Flask app "rpi-metro-display" (lazy loading)
+ * Environment: production
+   WARNING: This is a development server. Do not use it in a production deployment.
+   Use a production WSGI server instead.
+ * Debug mode: off
+Suggestion: to slightly improve display update, add
+	isolcpus=3
+at the end of /boot/cmdline.txt and reboot (see README.md)
+Process Process-2:
+Traceback (most recent call last):
+  File "/usr/lib/python3.13/multiprocessing/process.py", line 313, in _bootstrap
+    self.run()
+    ~~~~~~~~^^
+  File "/usr/lib/python3.13/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/metro-sign/rpi-metro-display/rpi-metro-display.py", line 88, in run_display
+  File "/root/metro-sign/rpi-metro-display/rpi-metro-display.py", line 209, in draw_display
+  File "graphics.pyx", line 32, in rgbmatrix.graphics.Font.LoadFont
+Exception: Couldn't load font /root/metro-sign/rpi-metro-display/fonts/6x10.bdf
