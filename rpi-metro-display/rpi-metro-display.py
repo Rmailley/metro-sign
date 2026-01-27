@@ -120,7 +120,7 @@ def run_display(api_key, station_code_receiver, direction_receiver, font_file):
         for bus_stop in BUS_STOPS:
             routes, directions, mins = get_bus_data(api_key, bus_stop["id"])
             draw_bus_display(canvas, font_file, bus_stop["name"], routes, directions, mins)
-            time.sleep(2)
+            time.sleep(5)
 
         # Redraw train times after showing buses
         if len(BUS_STOPS) > 0:
