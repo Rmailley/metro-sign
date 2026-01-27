@@ -252,14 +252,12 @@ def get_bus_data(api_key, stop_id):
                 direction = parse_value(prediction.get('DirectionText'))
                 mins = str(prediction.get('Minutes', ''))
 
-                # Only show buses more than 9 minutes away
-                if mins.isdigit() and int(mins) > 9:
-                    routes.append(route)
-                    # Truncate direction to fit display
-                    if len(direction) > 10:
-                        direction = direction[:10]
-                    directions.append(direction)
-                    minutes.append(mins)
+                routes.append(route)
+                # Truncate direction to fit display
+                if len(direction) > 10:
+                    direction = direction[:10]
+                directions.append(direction)
+                minutes.append(mins)
 
         except ValueError:
             tb = traceback.format_exc()

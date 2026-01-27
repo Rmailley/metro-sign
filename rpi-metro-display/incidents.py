@@ -68,7 +68,7 @@ def get_incidents(lines_requested, api_key):
 
     logging.info(messages)
     
-    messages = [message for message in messages if "elevator" not in message.lower()]
+    messages = [message for message in messages if "elevator" not in message.lower() and "escalator" not in message.lower()]
 
     return messages
 
