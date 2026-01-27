@@ -26,6 +26,13 @@ import requests
 import json
 import logging
 from incidents import get_incidents, draw_incident
+
+# Bus stop IDs to display
+BUS_STOPS = [
+    {"id": "1002874", "name": "16th & Euclid SB"},
+    {"id": "1004009", "name": "Columbia & 17th NB"},
+    {"id": "1001878", "name": "Columbia & Ontario SB"},
+]
 from logging.handlers import TimedRotatingFileHandler
 from traceback import format_exception
 import os
@@ -106,8 +113,20 @@ def run_display(api_key, station_code_receiver, direction_receiver, font_file):
             incidents_check_count = 0
 
         prev_lines, prev_cars, prev_dests, prev_times = show_train_times(api_key, font_file, canvas, station_code, direction, prev_lines, prev_cars, prev_dests, prev_times, force_update)
-        
+
         time.sleep(5)
+
+        # Show bus predictions for each stop
+        for bus_stop in BUS_STOPS:
+            routes, directions, mins = get_bus_data(api_key, bus_stop["id"])
+            if len(routes) > 0:
+                draw_bus_display(canvas, font_file, bus_stop["name"], routes, directions, mins)
+                time.sleep(2)
+
+        # Redraw train times after showing buses
+        if len(BUS_STOPS) > 0:
+            draw_display(canvas, font_file, prev_lines, prev_cars, prev_dests, prev_times)
+
         incidents_check_count += 1
 
 def init_matrix():
@@ -152,10 +171,12 @@ def get_train_data(api_key, station_code, direction):
                     dest = parse_value(train['Destination'])
                     line = parse_value(train['Line'])
                     time = parse_value(train['Min'])
-                    lines.append(line)
-                    cars.append(car)
-                    dests.append(dest)
-                    times.append(time)
+                    # Only show trains more than 9 minutes away
+                    if time.isdigit() and int(time) > 9:
+                        lines.append(line)
+                        cars.append(car)
+                        dests.append(dest)
+                        times.append(time)
 
             # If there are no trains in our group, we need to see if they're on the other
             # platform for single tracking
@@ -184,10 +205,12 @@ def get_train_data(api_key, station_code, direction):
                             dest = parse_value(train['Destination'])
                             line = parse_value(train['Line'])
                             time = parse_value(train['Min'])
-                            lines.append(line)
-                            cars.append(car)
-                            dests.append(dest)
-                            times.append(time)
+                            # Only show trains more than 9 minutes away
+                            if time.isdigit() and int(time) > 9:
+                                lines.append(line)
+                                cars.append(car)
+                                dests.append(dest)
+                                times.append(time)
 
 
         except ValueError:
@@ -197,6 +220,83 @@ def get_train_data(api_key, station_code, direction):
             logging.error(tb)
 
     return lines, cars, dests, times
+
+def get_bus_data(api_key, stop_id):
+    headers = {"api_key": api_key, "Accept": "application/json"}
+
+    try:
+        resp = requests.get(
+            "https://api.wmata.com/NextBusService.svc/json/jPredictions?StopID=" + stop_id,
+            headers=headers
+        )
+    except Exception:
+        tb = traceback.format_exc()
+        traceback.print_exc()
+        logging.error("An error occurred while getting bus data:")
+        logging.error(tb)
+        return [], [], []
+
+    routes = []
+    directions = []
+    minutes = []
+
+    if resp.status_code != 200:
+        logging.error("Error getting bus data! Response status code: ", resp.status_code)
+    else:
+        try:
+            resp_json = resp.json()
+            logging.debug("GOT BUS RESPONSE!!")
+
+            for prediction in resp_json.get('Predictions', []):
+                route = parse_value(prediction.get('RouteID'))
+                direction = parse_value(prediction.get('DirectionText'))
+                mins = str(prediction.get('Minutes', ''))
+
+                # Only show buses more than 9 minutes away
+                if mins.isdigit() and int(mins) > 9:
+                    routes.append(route)
+                    # Truncate direction to fit display
+                    if len(direction) > 10:
+                        direction = direction[:10]
+                    directions.append(direction)
+                    minutes.append(mins)
+
+        except ValueError:
+            tb = traceback.format_exc()
+            traceback.print_exc()
+            logging.error("Received value error, invalid JSON for bus data.")
+            logging.error(tb)
+
+    return routes, directions, minutes
+
+
+def draw_bus_display(canvas, font_file, stop_name, routes, directions, mins):
+    height_delta = 8
+    width_delta = 6
+    total_width = 128
+
+    font = graphics.Font()
+    font.LoadFont(font_file)
+    red_color = graphics.Color(255, 0, 0)
+    yellow_color = graphics.Color(200, 125, 0)
+
+    canvas.Clear()
+
+    # Draw header with stop name
+    graphics.DrawText(canvas, font, 0, 7, red_color, stop_name[:21])
+
+    # Draw up to 3 buses (rows 2-4)
+    for i in range(min(3, len(routes))):
+        route = routes[i]
+        direction = directions[i]
+        time = mins[i]
+
+        # Format: ROUTE DIRECTION    MIN
+        graphics.DrawText(canvas, font, 0, 15 + i * height_delta, yellow_color, route)
+        graphics.DrawText(canvas, font, 30, 15 + i * height_delta, yellow_color, direction)
+        x = total_width - len(time) * width_delta + 1
+        graphics.DrawText(canvas, font, x, 15 + i * height_delta, yellow_color, time)
+
 
 def draw_display(canvas, font_file, lines, cars, dests, mins):
     height_delta = 8

@@ -157,7 +157,7 @@ def draw_message(canvas, message, font_file):
             if i+x <= len(title_lines)-1:
                color = red_color
             graphics.DrawText(canvas, font, lines[i+x][1], 7 + x*height_delta, color, lines[i+x][0])
-        time.sleep(5)
+        time.sleep(2)
         canvas.Clear()
 
 
@@ -209,7 +209,7 @@ def draw_incident(canvas, font_file, message):
 
     logging.info("Got past drawing other squares")
 
-    time.sleep(5)
+    time.sleep(2)
 
     canvas.Clear()
     draw_message(canvas, message, font_file)
