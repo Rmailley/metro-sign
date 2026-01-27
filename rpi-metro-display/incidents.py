@@ -67,6 +67,8 @@ def get_incidents(lines_requested, api_key):
         logging.error(tb)
 
     logging.info(messages)
+    
+    messages = [message for message in messages if "elevator" not in message.lower()]
 
     return messages
 
