@@ -118,8 +118,8 @@ def run_display(api_key, station_code_receiver, direction_receiver, font_file):
 
         # Show bus predictions for each stop
         for bus_stop in BUS_STOPS:
-            routes, directions, mins = get_bus_data(api_key, bus_stop["id"])
-            draw_bus_display(canvas, font_file, bus_stop["name"], routes, directions, mins)
+            buses = get_bus_data(api_key, bus_stop["id"])
+            draw_bus_display(canvas, font_file, bus_stop["name"], buses)
             time.sleep(5)
 
         # Redraw train times after showing buses
@@ -233,11 +233,9 @@ def get_bus_data(api_key, stop_id):
         traceback.print_exc()
         logging.error("An error occurred while getting bus data:")
         logging.error(tb)
-        return [], [], []
+        return []
 
-    routes = []
-    directions = []
-    minutes = []
+    buses = {}  # Key: (route, destination), Value: list of minutes
 
     if resp.status_code != 200:
         logging.error("Error getting bus data! Response status code: ", resp.status_code)
@@ -251,12 +249,16 @@ def get_bus_data(api_key, stop_id):
                 direction = parse_value(prediction.get('DirectionText'))
                 mins = str(prediction.get('Minutes', ''))
 
-                routes.append(route)
-                # Truncate direction to fit display
-                if len(direction) > 10:
-                    direction = direction[:10]
-                directions.append(direction)
-                minutes.append(mins)
+                # Extract destination (everything after "to ")
+                if " to " in direction.lower():
+                    dest = direction.split(" to ", 1)[1]
+                else:
+                    dest = direction
+
+                key = (route, dest)
+                if key not in buses:
+                    buses[key] = []
+                buses[key].append(mins)
 
         except ValueError:
             tb = traceback.format_exc()
@@ -264,10 +266,11 @@ def get_bus_data(api_key, stop_id):
             logging.error("Received value error, invalid JSON for bus data.")
             logging.error(tb)
 
-    return routes, directions, minutes
+    # Convert to list of tuples: (route, destination, [minutes])
+    return [(route, dest, mins) for (route, dest), mins in buses.items()]
 
 
-def draw_bus_display(canvas, font_file, stop_name, routes, directions, mins):
+def draw_bus_display(canvas, font_file, stop_name, buses):
     height_delta = 8
     width_delta = 6
     total_width = 128
@@ -283,21 +286,31 @@ def draw_bus_display(canvas, font_file, stop_name, routes, directions, mins):
     graphics.DrawText(canvas, font, 0, 7, red_color, stop_name[:21])
 
     # If no buses, show message
-    if len(routes) == 0:
+    if len(buses) == 0:
         graphics.DrawText(canvas, font, 0, 15, yellow_color, "No buses")
         return
 
-    # Draw up to 3 buses (rows 2-4)
-    for i in range(min(3, len(routes))):
-        route = routes[i]
-        direction = directions[i]
-        time = mins[i]
+    # Draw up to 3 bus routes (rows 2-4)
+    for i in range(min(3, len(buses))):
+        route, dest, mins_list = buses[i]
+        times_str = ",".join(mins_list)
 
-        # Format: ROUTE DIRECTION    MIN
+        # Calculate available space for destination
+        # Format: ROUTE DEST TIMES
+        route_width = len(route) * width_delta + 6  # route + padding
+        times_width = len(times_str) * width_delta + 6  # times + padding
+        available_for_dest = total_width - route_width - times_width
+
+        # Truncate destination if needed
+        max_dest_chars = available_for_dest // width_delta
+        if len(dest) > max_dest_chars:
+            dest = dest[:max_dest_chars]
+
+        # Draw route, destination, and times
         graphics.DrawText(canvas, font, 0, 15 + i * height_delta, yellow_color, route)
-        graphics.DrawText(canvas, font, 30, 15 + i * height_delta, yellow_color, direction)
-        x = total_width - len(time) * width_delta + 1
-        graphics.DrawText(canvas, font, x, 15 + i * height_delta, yellow_color, time)
+        graphics.DrawText(canvas, font, route_width, 15 + i * height_delta, yellow_color, dest)
+        x = total_width - len(times_str) * width_delta + 1
+        graphics.DrawText(canvas, font, x, 15 + i * height_delta, yellow_color, times_str)
 
 
 def draw_display(canvas, font_file, lines, cars, dests, mins):
