@@ -16,6 +16,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
 from flask import Flask, jsonify, request, current_app
+import multiprocessing
 from multiprocessing import Process, Pipe
 from multiprocessing.sharedctypes import Value
 import ctypes
@@ -252,7 +253,7 @@ def serve(init_station_code, init_direction, station_code_sender, direction_send
         current_app.direction = init_direction
         current_app.station_code_sender = station_code_sender
         current_app.direction_sender = direction_sender
-    app.run(host="0.0.0.0")
+    app.run(host="0.0.0.0", port=5050)
 
 
 
@@ -581,5 +582,10 @@ def main():
     run_displays.start()
 
 if __name__ == '__main__':
+    # Use 'fork' on macOS to properly share pipe file descriptors
+    try:
+        multiprocessing.set_start_method('fork')
+    except RuntimeError:
+        pass  # Already set
     main()
 

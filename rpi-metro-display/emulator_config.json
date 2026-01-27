@@ -1,0 +1,12 @@
+{
+  "display_adapter": "pygame",
+  "suppress_adapter_load_errors": true,
+  "pixel_size": 16,
+  "pixel_style": "circle",
+  "pixel_outline": 0,
+  "pixel_glow": 6,
+  "icon_path": null,
+  "emulator_title": "Metro Display",
+  "suppress_font_warnings": true,
+  "log_level": "warning"
+}
