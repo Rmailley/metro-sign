@@ -119,9 +119,8 @@ def run_display(api_key, station_code_receiver, direction_receiver, font_file):
         # Show bus predictions for each stop
         for bus_stop in BUS_STOPS:
             routes, directions, mins = get_bus_data(api_key, bus_stop["id"])
-            if len(routes) > 0:
-                draw_bus_display(canvas, font_file, bus_stop["name"], routes, directions, mins)
-                time.sleep(2)
+            draw_bus_display(canvas, font_file, bus_stop["name"], routes, directions, mins)
+            time.sleep(2)
 
         # Redraw train times after showing buses
         if len(BUS_STOPS) > 0:
@@ -282,6 +281,11 @@ def draw_bus_display(canvas, font_file, stop_name, routes, directions, mins):
 
     # Draw header with stop name
     graphics.DrawText(canvas, font, 0, 7, red_color, stop_name[:21])
+
+    # If no buses, show message
+    if len(routes) == 0:
+        graphics.DrawText(canvas, font, 0, 15, yellow_color, "No buses")
+        return
 
     # Draw up to 3 buses (rows 2-4)
     for i in range(min(3, len(routes))):
