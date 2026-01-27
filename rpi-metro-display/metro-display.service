@@ -6,7 +6,7 @@ After=network.target dietpi-boot.service dietpi-postboot.service rc-local.servic
 Type=simple
 Restart=on-failure
 User=root
-ExecStart=/home/dietpi/metro-sign/rpi-metro-display/run.sh
+ExecStart=/root/metro-sign/rpi-metro-display/run.sh
 
 [Install]
 WantedBy=multi-user.target
