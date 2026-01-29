@@ -137,6 +137,7 @@ def init_matrix():
     options.pwm_lsb_nanoseconds = 300
     options.gpio_slowdown = 4
     options.drop_privileges = False
+    options.brightness = 60
     return RGBMatrix(options = options)
 
 def get_train_data(api_key, station_code, direction):
