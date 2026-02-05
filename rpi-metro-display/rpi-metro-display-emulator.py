@@ -1,3 +1,4 @@
+# Emulator version for local testing on macOS/Linux without LED matrix hardware
 # Display WMATA Metrorail times on a dot-matrix display
 # Copyright (C) 2020  Kenneth Schneider
 
@@ -14,7 +15,7 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
+from RGBMatrixEmulator import RGBMatrix, RGBMatrixOptions, graphics
 from flask import Flask, jsonify, request, current_app
 from multiprocessing import Process, Pipe
 from multiprocessing.sharedctypes import Value
@@ -26,7 +27,7 @@ import requests
 import json
 import logging
 from datetime import datetime
-from incidents import get_incidents, draw_incident
+from incidents_emulator import get_incidents, draw_incident
 
 # Bus stop IDs to display
 BUS_STOPS = [
@@ -65,7 +66,7 @@ def show_train_times(api_key, font_file, canvas, station_code, direction, prev_l
         dests != prev_dests or \
         times != prev_times:
         force_update = True
-    elif force_update: 
+    elif force_update:
         # Needed after an incident is displayed and the train times haven't changed
         # Realistically I could do without this condition because it's only a log
         # but to me it's nice to have
@@ -403,7 +404,7 @@ def draw_display(canvas, font_file, lines, cars, dests, mins):
     width_delta = 6
 
     total_width = 128
-    
+
     logging.info(f"Attempting to load font: {font_file}")
     logging.info(f"Current working directory: {os.getcwd()}")
     font = graphics.Font()
@@ -635,7 +636,7 @@ def change_station_by_name():
         return jsonify(**bad_name), 400
     else:
         station_name = sanitize_input(station_name)
-    
+
     if station_lines != None:
         if not isinstance(station_lines, list):
             bad_lines = {
@@ -671,7 +672,7 @@ def change_station_by_name():
             }
             return jsonify(**bad_station), 400
         terminal_station = sanitize_input(terminal_station)
-    
+
     # Look inside cached stations file for the station name
     # and save the associated code
     with open(stations_file.value) as sf:
@@ -752,7 +753,7 @@ def main():
     global lines_file
 
     if len(sys.argv) != 8:
-        print("Usage rpi-metro-display <log_file> <api_key> <initial_station_code> <initial_direction_code> <font_file> <lines_file> <stations_file>")
+        print("Usage rpi-metro-display-emulator <log_file> <api_key> <initial_station_code> <initial_direction_code> <font_file> <lines_file> <stations_file>")
         sys.exit(2)
 
     sys.excepthook = exception_hook
@@ -782,4 +783,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
