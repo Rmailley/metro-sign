@@ -378,11 +378,11 @@ def draw_time_weather_display(canvas, font_file, weather_data):
 
     # Center the time (larger visual impact)
     time_x = (total_width - len(time_str) * width_delta) // 2
-    graphics.DrawText(canvas, font, time_x, 12, yellow_color, time_str)
+    graphics.DrawText(canvas, font, time_x, 9, yellow_color, time_str)
 
     # Center the date
     date_x = (total_width - len(date_str) * width_delta) // 2
-    graphics.DrawText(canvas, font, date_x, 22, yellow_color, date_str)
+    graphics.DrawText(canvas, font, date_x, 19, yellow_color, date_str)
 
     # Temperature on bottom row
     if weather_data and weather_data.get("temperature") is not None:
@@ -392,9 +392,9 @@ def draw_time_weather_display(canvas, font_file, weather_data):
             desc = desc[:12]
         weather_line = f"{temp_str}  {desc}"
         weather_x = (total_width - len(weather_line) * width_delta) // 2
-        graphics.DrawText(canvas, font, weather_x, 32, red_color, weather_line)
+        graphics.DrawText(canvas, font, weather_x, 29, red_color, weather_line)
     else:
-        graphics.DrawText(canvas, font, 40, 32, red_color, "No data")
+        graphics.DrawText(canvas, font, 40, 29, red_color, "No data")
 
 
 def draw_display(canvas, font_file, lines, cars, dests, mins):
