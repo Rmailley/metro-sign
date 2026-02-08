@@ -55,12 +55,12 @@ def exception_hook(exctype, value, tb):
 
 def show_train_times(api_key, font_file, canvas, station_code, direction, prev_lines, prev_cars, prev_dests, prev_times, force_update):
     lines, cars, dests, times = get_train_data(api_key, station_code, direction)
-    if lines == None and \
-        cars == None and \
-        dests == None and \
-        times == None:
+    if (lines == None and cars == None and dests == None and times == None):
         lines, cars, dests, times = prev_lines, prev_cars, prev_dests, prev_times
         logging.error("Error getting update from WMATA API.")
+    elif len(lines) == 0 and len(prev_lines) > 0:
+        lines, cars, dests, times = prev_lines, prev_cars, prev_dests, prev_times
+        logging.debug("No trains returned, keeping previous data.")
     elif lines != prev_lines or \
         cars != prev_cars or \
         dests != prev_dests or \
