@@ -26,6 +26,7 @@ import sys
 import requests
 import json
 import logging
+import re
 from datetime import datetime
 from incidents_emulator import get_incidents, draw_incident
 
@@ -99,6 +100,7 @@ def run_display(api_key, station_code_receiver, direction_receiver, font_file, l
     prev_dests = []
     prev_times = []
     weather_data = get_weather_data("KDCA")
+    forecast_data = get_forecast_data()
 
     draw_display(canvas, font_file, [], [], [], [])
 
@@ -118,8 +120,9 @@ def run_display(api_key, station_code_receiver, direction_receiver, font_file, l
             for incident in incidents:
                 logging.info("Calling draw_incident for: {}".format(incident))
                 draw_incident(canvas, font_file, incident)
-            # Update weather data every minute
+            # Update weather and forecast data every minute
             weather_data = get_weather_data("KDCA")
+            forecast_data = get_forecast_data()
             incidents_check_count = 0
 
         prev_lines, prev_cars, prev_dests, prev_times = show_train_times(api_key, font_file, canvas, station_code, direction, prev_lines, prev_cars, prev_dests, prev_times, force_update)
@@ -133,7 +136,7 @@ def run_display(api_key, station_code_receiver, direction_receiver, font_file, l
             time.sleep(5)
 
         # Show time and weather
-        draw_time_weather_display(canvas, font_file, weather_data)
+        draw_time_weather_display(canvas, font_file, weather_data, forecast_data)
         time.sleep(5)
 
         # Redraw train times after showing buses and weather
@@ -350,26 +353,9 @@ def get_weather_data(station_id="KDCA"):
         else:
             temp_f = None
 
-        # Wind speed is in km/h, convert to knots
-        wind_speed_kmh = props.get("windSpeed", {}).get("value")
-        if wind_speed_kmh is not None:
-            wind_speed_kts = round(wind_speed_kmh * 0.539957)
-        else:
-            wind_speed_kts = None
-
-        # Wind direction in degrees, convert to cardinal
-        wind_dir_deg = props.get("windDirection", {}).get("value")
-        if wind_dir_deg is not None:
-            directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-            wind_dir = directions[round(wind_dir_deg / 45) % 8]
-        else:
-            wind_dir = None
-
         return {
             "temperature": temp_f,
             "description": props.get("textDescription", ""),
-            "wind_speed": wind_speed_kts,
-            "wind_direction": wind_dir,
         }
     except Exception:
         tb = traceback.format_exc()
@@ -378,7 +364,63 @@ def get_weather_data(station_id="KDCA"):
         return None
 
 
-def draw_time_weather_display(canvas, font_file, weather_data):
+def get_forecast_data():
+    """Fetch today's forecast from NWS API for wind and precipitation info."""
+    try:
+        headers = {"User-Agent": "metro-sign-display", "Accept": "application/json"}
+        resp = requests.get(
+            "https://api.weather.gov/gridpoints/LWX/96,73/forecast",
+            headers=headers,
+            timeout=10
+        )
+        if resp.status_code != 200:
+            logging.error(f"Error getting forecast data! Status: {resp.status_code}")
+            return None
+
+        data = resp.json()
+        periods = data.get("properties", {}).get("periods", [])
+        if not periods:
+            logging.error("No forecast periods returned")
+            return None
+
+        # Get today's daytime period, or first period if none is daytime
+        period = periods[0]
+        for p in periods:
+            if p.get("isDaytime"):
+                period = p
+                break
+
+        # Parse wind speed: e.g. "13 to 16 mph" or "10 mph" → extract max → convert to knots
+        wind_speed_str = period.get("windSpeed", "")
+        wind_speed_kts = None
+        if wind_speed_str:
+            numbers = re.findall(r'\d+', wind_speed_str)
+            if numbers:
+                max_mph = max(int(n) for n in numbers)
+                wind_speed_kts = round(max_mph * 0.868976)
+
+        wind_direction = period.get("windDirection", "")
+
+        # Check for precipitation keywords in short forecast
+        short_forecast = period.get("shortForecast", "")
+        precip_keywords = ["rain", "snow", "sleet", "ice", "storm", "shower", "drizzle", "freezing", "thunderstorm"]
+        precip_forecast = None
+        if any(kw in short_forecast.lower() for kw in precip_keywords):
+            precip_forecast = short_forecast
+
+        return {
+            "wind_speed": wind_speed_kts,
+            "wind_direction": wind_direction,
+            "precip_forecast": precip_forecast,
+        }
+    except Exception:
+        tb = traceback.format_exc()
+        logging.error("Error getting forecast data:")
+        logging.error(tb)
+        return None
+
+
+def draw_time_weather_display(canvas, font_file, weather_data, forecast_data):
     """Draw a screen showing current time and temperature."""
     total_width = 128
     width_delta = 6
@@ -399,20 +441,25 @@ def draw_time_weather_display(canvas, font_file, weather_data):
     # Temperature and description on second row
     if weather_data and weather_data.get("temperature") is not None:
         temp_str = f"{weather_data['temperature']}F"
-        desc = weather_data.get("description", "")
+        # Use precip forecast if available, otherwise use observation description
+        if forecast_data and forecast_data.get("precip_forecast"):
+            desc = forecast_data["precip_forecast"]
+        else:
+            desc = weather_data.get("description", "")
         if len(desc) > 16:
             desc = desc[:16]
         temp_line = f"{temp_str}  {desc}"
         temp_x = (total_width - len(temp_line) * width_delta) // 2
         graphics.DrawText(canvas, font, temp_x, 19, yellow_color, temp_line)
 
-        # Wind on third row
-        wind_speed = weather_data.get("wind_speed")
-        wind_dir = weather_data.get("wind_direction")
-        if wind_speed is not None and wind_dir is not None:
-            wind_line = f"Wind {wind_dir}@{wind_speed}kts"
-            wind_x = (total_width - len(wind_line) * width_delta) // 2
-            graphics.DrawText(canvas, font, wind_x, 29, yellow_color, wind_line)
+        # Wind on third row (from forecast data)
+        if forecast_data:
+            wind_speed = forecast_data.get("wind_speed")
+            wind_dir = forecast_data.get("wind_direction")
+            if wind_speed is not None and wind_dir:
+                wind_line = f"Wind {wind_dir}@{wind_speed}kts"
+                wind_x = (total_width - len(wind_line) * width_delta) // 2
+                graphics.DrawText(canvas, font, wind_x, 29, yellow_color, wind_line)
     else:
         graphics.DrawText(canvas, font, 40, 19, yellow_color, "No data")
 
@@ -445,6 +492,8 @@ def draw_display(canvas, font_file, lines, cars, dests, mins):
         # Handle case for No Passenger trains
         if lines[i] == "No" and car == "":
             graphics.DrawText(canvas, font, 28, 15 + i*height_delta, yellow_color, "Pa")
+        elif car == "":
+            graphics.DrawText(canvas, font, 20, 15 + i*height_delta, yellow_color, "6")
         elif car == "8": # 8 car trains are green
             graphics.DrawText(canvas, font, 20, 15 + i*height_delta, green_color, car)
         else:
