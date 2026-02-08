@@ -390,35 +390,31 @@ def draw_time_weather_display(canvas, font_file, weather_data):
 
     canvas.Clear()
 
-    # Get current time
+    # Get current time and date on one line
     now = datetime.now()
-    time_str = now.strftime("%I:%M %p").lstrip("0")
-    date_str = now.strftime("%a %b %d")
+    time_date_str = now.strftime("%I:%M %p  %a %b %d").lstrip("0")
+    time_date_x = (total_width - len(time_date_str) * width_delta) // 2
+    graphics.DrawText(canvas, font, time_date_x, 9, yellow_color, time_date_str)
 
-    # Center the time (larger visual impact)
-    time_x = (total_width - len(time_str) * width_delta) // 2
-    graphics.DrawText(canvas, font, time_x, 9, yellow_color, time_str)
-
-    # Center the date
-    date_x = (total_width - len(date_str) * width_delta) // 2
-    graphics.DrawText(canvas, font, date_x, 19, yellow_color, date_str)
-
-    # Temperature and wind on bottom row
+    # Temperature and description on second row
     if weather_data and weather_data.get("temperature") is not None:
         temp_str = f"{weather_data['temperature']}F"
+        desc = weather_data.get("description", "")
+        if len(desc) > 16:
+            desc = desc[:16]
+        temp_line = f"{temp_str}  {desc}"
+        temp_x = (total_width - len(temp_line) * width_delta) // 2
+        graphics.DrawText(canvas, font, temp_x, 19, yellow_color, temp_line)
+
+        # Wind on third row
         wind_speed = weather_data.get("wind_speed")
         wind_dir = weather_data.get("wind_direction")
         if wind_speed is not None and wind_dir is not None:
-            weather_line = f"{temp_str}  {wind_dir} {wind_speed}kts"
-        else:
-            desc = weather_data.get("description", "")
-            if len(desc) > 12:
-                desc = desc[:12]
-            weather_line = f"{temp_str}  {desc}"
-        weather_x = (total_width - len(weather_line) * width_delta) // 2
-        graphics.DrawText(canvas, font, weather_x, 29, red_color, weather_line)
+            wind_line = f"Wind {wind_dir}@{wind_speed}kts"
+            wind_x = (total_width - len(wind_line) * width_delta) // 2
+            graphics.DrawText(canvas, font, wind_x, 29, yellow_color, wind_line)
     else:
-        graphics.DrawText(canvas, font, 40, 29, red_color, "No data")
+        graphics.DrawText(canvas, font, 40, 19, yellow_color, "No data")
 
 
 def draw_display(canvas, font_file, lines, cars, dests, mins):
