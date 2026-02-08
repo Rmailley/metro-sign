@@ -350,9 +350,26 @@ def get_weather_data(station_id="KDCA"):
         else:
             temp_f = None
 
+        # Wind speed is in km/h, convert to knots
+        wind_speed_kmh = props.get("windSpeed", {}).get("value")
+        if wind_speed_kmh is not None:
+            wind_speed_kts = round(wind_speed_kmh * 0.539957)
+        else:
+            wind_speed_kts = None
+
+        # Wind direction in degrees, convert to cardinal
+        wind_dir_deg = props.get("windDirection", {}).get("value")
+        if wind_dir_deg is not None:
+            directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+            wind_dir = directions[round(wind_dir_deg / 45) % 8]
+        else:
+            wind_dir = None
+
         return {
             "temperature": temp_f,
             "description": props.get("textDescription", ""),
+            "wind_speed": wind_speed_kts,
+            "wind_direction": wind_dir,
         }
     except Exception:
         tb = traceback.format_exc()
@@ -386,13 +403,18 @@ def draw_time_weather_display(canvas, font_file, weather_data):
     date_x = (total_width - len(date_str) * width_delta) // 2
     graphics.DrawText(canvas, font, date_x, 19, yellow_color, date_str)
 
-    # Temperature on bottom row
+    # Temperature and wind on bottom row
     if weather_data and weather_data.get("temperature") is not None:
         temp_str = f"{weather_data['temperature']}F"
-        desc = weather_data.get("description", "")
-        if len(desc) > 12:
-            desc = desc[:12]
-        weather_line = f"{temp_str}  {desc}"
+        wind_speed = weather_data.get("wind_speed")
+        wind_dir = weather_data.get("wind_direction")
+        if wind_speed is not None and wind_dir is not None:
+            weather_line = f"{temp_str}  {wind_dir} {wind_speed}kts"
+        else:
+            desc = weather_data.get("description", "")
+            if len(desc) > 12:
+                desc = desc[:12]
+            weather_line = f"{temp_str}  {desc}"
         weather_x = (total_width - len(weather_line) * width_delta) // 2
         graphics.DrawText(canvas, font, weather_x, 29, red_color, weather_line)
     else:
